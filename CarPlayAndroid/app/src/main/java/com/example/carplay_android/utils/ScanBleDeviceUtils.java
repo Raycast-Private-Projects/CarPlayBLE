@@ -1,6 +1,7 @@
 package com.example.carplay_android.utils;
 
 import android.content.Context;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.clj.fastble.BleManager;
@@ -15,7 +16,7 @@ public class ScanBleDeviceUtils {
 
     public static void scanLeDevice(Context context) {
         BleScanRuleConfig scanRuleConfig = new BleScanRuleConfig.Builder()
-                .setScanTimeOut(10000)
+                .setScanTimeOut(8000)
                 .build();
         BleManager.getInstance().initScanRule(scanRuleConfig);
         BleManager.getInstance().scan(new BleScanCallback() {
@@ -38,6 +39,7 @@ public class ScanBleDeviceUtils {
             @Override
             public void onScanFinished(List<BleDevice> scanResultList) {
                 resultList = scanResultList;
+                //Log.d("Balls", resultList.toString());
                 BroadcastUtils.sendBleDevices(resultList, "DeviceList", context);
             }
         });

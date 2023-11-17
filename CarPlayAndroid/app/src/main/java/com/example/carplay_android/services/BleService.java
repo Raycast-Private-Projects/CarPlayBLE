@@ -11,6 +11,7 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 
@@ -102,6 +103,7 @@ public class BleService extends Service {
                 @Override
                 public void onConnectFail(BleDevice bleDevice, BleException exception) {
                     Log.d("s", "Connect failed");
+                    showToast(":( Connection Failed, try reconnecting again '^'");
                 }
 
                 @Override
@@ -110,7 +112,7 @@ public class BleService extends Service {
                     BroadcastUtils.sendStatus(true, getFILTER_DEVICE_STATUS(), getApplicationContext());
                     bleDeviceConnectTo = bleDevice;
                     NotificationService.cleanLastTimeSent();
-
+                    showToast("Yay its connected!!<3");
                 }
 
                 @Override
@@ -186,6 +188,10 @@ public class BleService extends Service {
     public void onDestroy() {
         super.onDestroy();
         BroadcastUtils.sendStatus(false, getFILTER_BLE_STATUS(), getApplicationContext());
+    }
+    private void showToast(String message) {
+        // Display a toast message on the screen
+        Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
     }
 }
 
