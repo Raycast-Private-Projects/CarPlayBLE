@@ -3,6 +3,22 @@ from micropython import const
 from ble_advertising import advertising_payload
 import time
 import machine
+
+
+Directions = [
+    "ARRIVE", "ARRIVE_LEFT", "ARRIVE_RIGHT", "CONTINUE_LEFT", "CONTINUE_RETURN",
+    "CONTINUE_RIGHT", "CONTINUE_SLIGHT_LEFT", "CONTINUE_SLIGHT_RIGHT", "CONTINUE_STRAIGHT",
+    "DEPART", "FORK", "POINTER", "ROTATORY_EXIT", "ROTATORY_EXIT_INVERTED", "ROTATORY_LEFT",
+    "ROTATORY_LEFT_INVERTED", "ROTATORY_RIGHT", "ROTATORY_RIGHT_INVERTED", "ROTATORY_SHARP_LEFT",
+    "ROTATORY_SHARP_LEFT_INVERTED", "ROTATORY_SHARP_RIGHT", "ROTATORY_SHARP_RIGHT_INVERTED",
+    "ROTATORY_SLIGHT_LEFT", "ROTATORY_SLIGHT_LEFT_INVERTED", "ROTATORY_SLIGHT_RIGHT",
+    "ROTATORY_SLIGHT_RIGHT_INVERTED", "ROTATORY_STRAIGHT", "ROTATORY_STRAIGHT_INVERTED",
+    "ROTATORY_TOTAL", "ROTATORY_TOTAL_INVERTED", "SHARP_LEFT", "SHARP_RIGHT", "SLIGHT_LEFT",
+    "SLIGHT_RIGHT", "UNKNOWN"
+]
+
+_IO_CAPABILITY_NO_INPUT_OUTPUT = const(3)
+
 _IRQ_CENTRAL_CONNECT = const(1)
 _IRQ_CENTRAL_DISCONNECT = const(2)
 _IRQ_GATTS_WRITE = const(3)
@@ -61,69 +77,26 @@ DESTINATION_CHAR, ETA_CHAR, DIRECTION_CHAR, DIRECTION_DISTANCE_CHAR, ETA_MINUTES
 DIRECTION_PRECISE_CHAR),)
 
 SERVICES = (MapsConnectService,)
-#((MapsConnect)) = ble.gatts_register_services(SERVICES)
 
-def on_write(char):
-    uuid = str(char.uuid())
-    value = char.value().decode('utf-8')
-
-    if uuid == DESTINATION_UUID:
-        print("Destination:", value)
-    elif uuid == ETA_UUID:
-        print("ETA:", value)
-    elif uuid == DIRECTION_UUID:
-        print("Direction:", value)
-    else:
-        print("UUID: ", uuid)
-        print("Value: ", value)
-    # Add other cases for the remaining characteristics
-
-#def _irq(self, event, data):
-    # Track connections so we can send notifications.
-#    if event == _IRQ_CENTRAL_CONNECT:
-        #conn_handle, _, _ = data
-        #print("New connection", conn_handle)
-        #self._connections.add(conn_handle)
-#        print("Connected")
-#    elif event == _IRQ_CENTRAL_DISCONNECT:
-        #conn_handle, _, _ = data
-        #print("Disconnected", conn_handle)
-        #self._connections.remove(conn_handle)
-        # Start advertising again to allow a new connection.
-        #self._advertise()
-#        print("disconnected")
-#    elif event == _IRQ_GATTS_WRITE:
-#        print("Value received?")
-        #conn_handle, value_handle = data
-        #value = self._ble.gatts_read(value_handle)
-        #if value_handle == self._handle_rx and self._write_callback:
-           #self._write_callback(value)
-        
-# Set callback for characteristic write events
-#DESTINATION_CHAR.callback(on_write)
-#ETA_CHAR.callback(on_write)
-#DIRECTION_CHAR.callback(on_write)
-#DIRECTION_DISTANCE_CHAR.callback(on_write)
-#ETA_MINUTES_CHAR.callback(on_write)
-#DISTANCE_CHAR.callback(on_write)
-#DIRECTION_PRECISE_CHAR.callback(on_write)
-
-# Start advertising
-
-#ble.gap_advertise(100, bytearray(SERVICE_UUID))
-#print("Advertising...")
-
-#def prettify(mac_string):
-#    return ':'.join('%02x' % ord(b) for b in mac_string)
-
+value_handle = 0
+dict = {}
+dict['Maps data'] = {}
+dict['Maps data']["Time"] = {}
+dict['Maps data']["Travel Time"] = {}
+dict['Maps data']["Arival Time"] = {}
+dict['Maps data']["Direction"] = {}
 class BLEMapsService:
     #def __init__(self, ble, name="mpy-BT"):
     #buzzer = machine.Pin(14, machine.Pin.OUT)
+    DataDict = {}
+    #value_handle = 0
+    ReadData = False
     def __init__(self, name="mpy-BT"):
         #self._ble = ble
         self._ble = bluetooth.BLE()
         self._ble.active(True)
         self._ble.config(mtu=400)
+        self._ble.config(io=_IO_CAPABILITY_NO_INPUT_OUTPUT)
         print(self._ble.config('mac')[1].hex(":"))
         self._ble.irq(self._irq)
         #((self._handle_tx, self._handle_rx),) = self._ble.gatts_register_services((_UART_SERVICE,))
@@ -134,6 +107,7 @@ class BLEMapsService:
         self._advertise()
 
     def _irq(self, event, data):
+        global value_handle
         # Track connections so we can send notifications.
         if event == _IRQ_CENTRAL_CONNECT:
             conn_handle, _, _ = data
@@ -149,17 +123,44 @@ class BLEMapsService:
             # Start advertising again to allow a new connection.
             self._advertise()
         elif event == _IRQ_GATTS_WRITE:
+            print("Received Data")
             conn_handle, value_handle = data
             value = self._ble.gatts_read(value_handle)
+            decoded_value = value.decode('utf-8').replace(u'\xa0', ' ')
+            self.ReadData = True
             #if value_handle == self._handle_rx and self._write_callback:
             #    self._write_callback(value)
-            print("Value Handle: ", value_handle)
-            print("Value: ", value.decode('utf-8'))
+            if value_handle == 21:
+                print('Time: ', decoded_value)
+                self.DataDict["Time"] = decoded_value
+            elif value_handle == 29:
+                print('Travel Time: ', decoded_value)
+                self.DataDict["TravelTime"] = decoded_value
+            elif value_handle == 23:
+                print('Arival Time', decoded_value)
+                self.DataDict["ArivalTime"] = decoded_value
+            elif value_handle == 27:
+                print('Street: ', decoded_value)
+                self.DataDict["Street"] = decoded_value
+            elif value_handle == 31:
+                print('Distance: ', decoded_value)
+                self.DataDict["Distance"] = decoded_value
+            elif value_handle == 25:
+                print('Distance Till: ', decoded_value)
+                self.DataDict["DistanceTill"] = decoded_value
+            elif value_handle == 33:
+                print('Direction: ', decoded_value)
+                self.DataDict["Direction"] = decoded_value
+            #print("\n\n")
+#            print("Conn Handle: ", conn_handle  )
+#            print("Value Handle: ", value_handle)
+#            print("Value: ", value.decode('utf-8'))
         #elif event == _IRQ_MTU_EXCHANGED:
         #    conn_handle, mtu = data
         #    self._ble.config(mtu=mtu)
         else:
-            print("Unknown event")
+            print("Received Unknown Data")
+            print("Data:")
             print("Event: ", event)
             print("Data: ", data)
             #buzzer.high()
@@ -178,8 +179,14 @@ class BLEMapsService:
 
     def on_write(self, callback):
         self._write_callback = callback
-
-def Test():
+    def GetData(self):
+        return self.DataDict
+    def ResetRead(self):
+        self.ReadData = False
+        return
+    def NewBLEData(self):
+        return self.ReadData
+def BluetoothService():
     #ble = bluetooth.BLE()
     #Maps = BLEMapsService(ble)
     Maps = BLEMapsService()
@@ -187,9 +194,70 @@ def Test():
         print("RX", v)
 
     Maps.on_write(on_rx)
-Test()
+#BluetoothService()
 def empty():
     pass
+Maps = BLEMapsService()
+DataReadTimer = 0
+ReadDelay = 3 # 3 seconds delay before setting vars
 while True:
-    empty()
-    time.sleep(1)
+    CurrentTick = time.ticks_ms()
+    #empty()
+    #time.sleep(3)
+
+    if Maps.NewBLEData() and CurrentTick >= DataReadTimer: # Parse Data
+        DataReadTimer = CurrentTick + ReadDelay * 1000
+        Maps.ResetRead()
+        Data = Maps.GetData()
+        if "Time" in Data.keys():
+            Time = Data["Time"]
+            #print('Time: ', Time)
+            split = Time.split(":")
+            if "AM" in Time:
+                dict['Maps data']["Time"]["AmPm"] = "AM"
+            elif "PM" in Time:
+                dict['Maps data']["Time"]["AmPm"] = "PM"
+            else:
+                dict['Maps data']["Time"]["AmPm"] = ""
+            dict['Maps data']["Time"]["Minute"] = int(split[1].split(" ")[0])
+            dict['Maps data']["Time"]["Hour"] = int(split[0])
+            #print(dict['Maps data']["Time"])
+        if "TravelTime" in Data.keys():
+            TravelTime = Data["TravelTime"]
+            #print('Travel Time: ', TravelTime)
+            split = TravelTime.split(" ")
+            if len(split) == 4:
+                dict['Maps data']["Travel Time"]["Minute"] = int(split[3])
+                dict['Maps data']["Travel Time"]["Hour"] = int(split[0])
+            elif len(split) == 2:
+                dict['Maps data']["Travel Time"]["Minute"] = int(split[0])
+                dict['Maps data']["Travel Time"]["Hour"] = int(0)
+            else:
+                dict['Maps data']["Travel Time"]["Minute"] = int(0)
+                dict['Maps data']["Travel Time"]["Hour"] = int(0)
+                print("Error!")
+            #print(dict['Maps data']["Travel Time"])
+        if "ArivalTime" in Data.keys():
+            ArivalTime = Data["ArivalTime"]
+            #print('Arival Time', ArivalTime)
+            split = ArivalTime.split(":")
+            if "AM" in ArivalTime:
+                dict['Maps data']["Arival Time"]["AmPm"] = "AM"
+            elif "PM" in ArivalTime:
+                dict['Maps data']["Arival Time"]["AmPm"] = "PM"
+            else:
+                dict['Maps data']["Arival Time"]["AmPm"] = ""
+                dict['Maps data']["Arival Time"]["Minute"] = int(split[1].split(" ")[0])
+                dict['Maps data']["Arival Time"]["Hour"] = int(split[0])
+            #print(dict['Maps data']["Arival Time"])
+        if "Street" in Data.keys():
+            dict["Maps data"]["Street"] = Data["Street"]
+        if "Distance" in Data.keys():
+            dict["Maps data"]["Distance"] = Data["Distance"]
+        if "DistanceTill" in Data.keys():
+            dict["Maps data"]["Distance Till"] = Data["DistanceTill"]
+        if "Direction" in Data.keys():
+            dict["Maps data"]["Direction"]["ID"] = Data["Direction"]
+            dict["Maps data"]["Direction"]["Direction"] = Directions[int(Data["Direction"])]
+        print("Maps Data: ", dict)
+# if "secret" in raw_file_content:
