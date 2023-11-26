@@ -1,5 +1,8 @@
 # CarPlayBLE
- 
+
+Android app updates are now uploaded to
+https://github.com/Raycast-Private-Projects/ALA2_APP
+
 ## Introduction
 This is a project that helps me to get navigation information when I am driving, it is consisted of the android app and ESP32 hardware, the ESP32 would display the navigation information I need when I am driving.
 this project is devided into two programs, the app part is writen in Android/Java and the ESP32's used Arduino/C as it's language.<br>
